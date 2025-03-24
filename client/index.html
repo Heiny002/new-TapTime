@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TapTime!</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+        #login-screen, #waiting-room, #strategy-room {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            pointer-events: auto;
+            min-width: 300px;
+        }
+        .hidden {
+            display: none;
+        }
+        #health-bars {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            pointer-events: none;
+        }
+        .health-bar {
+            width: 200px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .health-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        /* Add styles for input and button */
+        input[type="text"] {
+            padding: 8px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 4px;
+            width: 200px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #player-list, #team-info, #team-members {
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        /* Player list styling */
+        #player-list {
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        #player-list div {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #player-list div:last-child {
+            border-bottom: none;
+        }
+        .current-player {
+            background-color: rgba(76, 175, 80, 0.2);
+            border-left: 3px solid #4CAF50;
+        }
+        /* Room titles */
+        h2 {
+            margin-top: 0;
+            color: #4CAF50;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <!-- Login Screen -->
+            <div id="login-screen">
+                <h2>Welcome to TapTime!</h2>
+                <input type="text" id="username" placeholder="Enter your username">
+                <button id="join-btn">Join Game</button>
+            </div>
+
+            <!-- Waiting Room -->
+            <div id="waiting-room" class="hidden">
+                <h2>Waiting Room</h2>
+                <p>Players in the room:</p>
+                <div id="player-list"></div>
+                <button id="ready-btn">Ready</button>
+            </div>
+
+            <!-- Strategy Room -->
+            <div id="strategy-room" class="hidden">
+                <h2>Strategy Room</h2>
+                <div id="team-info"></div>
+                <div id="team-members"></div>
+                <button id="start-battle-btn">Start Battle</button>
+            </div>
+
+            <!-- Health Bars -->
+            <div id="health-bars"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.162.0/three.min.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html> 
