@@ -30,7 +30,8 @@ const gameState = {
     players: [],
     gameStarted: false,
     castleHealth: new Map(), // 0-3 for each team
-    activeCastles: new Set([0, 1, 2, 3])
+    activeCastles: new Set([0, 1, 2, 3]),
+    readyPlayers: new Set() // Track which players are ready
 };
 
 // Team configuration
@@ -40,6 +41,12 @@ const teams = {
         1: 0xCC1F11, // Red
         2: 0x0A48A2, // Blue
         3: 0x3BA226  // Green
+    },
+    names: {
+        0: 'Yellow',
+        1: 'Red',
+        2: 'Blue',
+        3: 'Green'
     },
     positions: [
         { x: -8, z: 0 },  // Yellow (West)
@@ -63,6 +70,7 @@ function addFakePlayers(count) {
             id: `fake-${Date.now()}-${index}`,
             username,
             team: null,
+            teamNumber: null,
             joinTime: Date.now() - Math.floor(Math.random() * 60000), // Random join time in the last minute
             isFake: true
         });
@@ -70,6 +78,87 @@ function addFakePlayers(count) {
     
     // Emit updated player list
     io.emit('playerList', gameState.players);
+}
+
+// Assign players to teams
+function assignTeams() {
+    // Shuffle the player list to randomize team assignments
+    const shuffledPlayers = [...gameState.players].sort(() => 0.5 - Math.random());
+    
+    // Calculate how many players per team (trying to distribute evenly)
+    const totalPlayers = shuffledPlayers.length;
+    const numTeams = 4;
+    const basePlayersPerTeam = Math.floor(totalPlayers / numTeams);
+    const remainingPlayers = totalPlayers % numTeams;
+    
+    // Keep track of how many players are in each team
+    const teamSizes = Array(numTeams).fill(basePlayersPerTeam);
+    
+    // Distribute remaining players (one extra for some teams)
+    for (let i = 0; i < remainingPlayers; i++) {
+        teamSizes[i]++;
+    }
+    
+    // Assign players to teams
+    let playerIndex = 0;
+    for (let teamId = 0; teamId < numTeams; teamId++) {
+        // For each team, assign the calculated number of players
+        const teamMembers = [];
+        for (let i = 0; i < teamSizes[teamId]; i++) {
+            if (playerIndex < shuffledPlayers.length) {
+                const player = shuffledPlayers[playerIndex];
+                const originalIndex = gameState.players.findIndex(p => p.id === player.id);
+                if (originalIndex !== -1) {
+                    gameState.players[originalIndex].team = teamId;
+                    teamMembers.push(gameState.players[originalIndex]);
+                }
+                playerIndex++;
+            }
+        }
+        
+        // Assign random numbers to team members
+        assignTeamNumbers(teamMembers);
+    }
+    
+    // Notify all players of their team assignments
+    notifyTeamAssignments();
+}
+
+// Assign random numbers to team members
+function assignTeamNumbers(teamMembers) {
+    // Shuffle array of indices from 1 to team size
+    const teamNumbers = Array.from({length: teamMembers.length}, (_, i) => i + 1);
+    teamNumbers.sort(() => 0.5 - Math.random());
+    
+    // Assign shuffled numbers to team members
+    teamMembers.forEach((player, index) => {
+        const originalIndex = gameState.players.findIndex(p => p.id === player.id);
+        if (originalIndex !== -1) {
+            gameState.players[originalIndex].teamNumber = teamNumbers[index];
+        }
+    });
+}
+
+// Notify players of their team assignments
+function notifyTeamAssignments() {
+    // Group players by team
+    const teamPlayers = {};
+    for (let teamId = 0; teamId < 4; teamId++) {
+        teamPlayers[teamId] = gameState.players.filter(p => p.team === teamId);
+    }
+    
+    // For each player, send their team assignment
+    gameState.players.forEach(player => {
+        if (!player.isFake) {
+            io.to(player.id).emit('teamAssigned', {
+                team: player.team,
+                teamName: teams.names[player.team],
+                teamColor: teams.colors[player.team],
+                teamNumber: player.teamNumber,
+                teamMembers: teamPlayers[player.team]
+            });
+        }
+    });
 }
 
 // Socket.IO connection handling
@@ -82,12 +171,39 @@ io.on('connection', (socket) => {
             id: socket.id,
             username,
             team: null,
+            teamNumber: null,
             joinTime: Date.now(),
             isFake: false
         };
         // Add real player at the top of the list
         gameState.players.unshift(player);
         io.emit('playerList', gameState.players);
+    });
+    
+    // Handle player ready
+    socket.on('playerReady', () => {
+        // Mark this player as ready
+        gameState.readyPlayers.add(socket.id);
+        
+        // Assign teams if this is the first real player who's ready
+        // In a real implementation, we might wait for all players or use a timer
+        if (!gameState.players.some(p => p.team !== null)) {
+            assignTeams();
+        }
+        else {
+            // If teams are already assigned, just notify this player of their team
+            const player = gameState.players.find(p => p.id === socket.id);
+            if (player && player.team !== null) {
+                const teamMembers = gameState.players.filter(p => p.team === player.team);
+                socket.emit('teamAssigned', {
+                    team: player.team,
+                    teamName: teams.names[player.team],
+                    teamColor: teams.colors[player.team],
+                    teamNumber: player.teamNumber,
+                    teamMembers: teamMembers
+                });
+            }
+        }
     });
 
     // Handle game actions
@@ -126,6 +242,7 @@ io.on('connection', (socket) => {
     // Handle disconnection
     socket.on('disconnect', () => {
         gameState.players = gameState.players.filter(p => p.id !== socket.id);
+        gameState.readyPlayers.delete(socket.id);
         io.emit('playerList', gameState.players);
     });
 });
@@ -141,10 +258,10 @@ function startGame() {
         gameState.castleHealth.set(i, 10);
     }
     
-    // Assign teams
-    gameState.players.forEach((player, index) => {
-        player.team = index % 4;
-    });
+    // Make sure all players have teams assigned
+    if (!gameState.players.every(p => p.team !== null)) {
+        assignTeams();
+    }
     
     io.emit('gameStart', {
         players: gameState.players,

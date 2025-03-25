@@ -79,6 +79,10 @@
         button:hover {
             background-color: #45a049;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         #player-list, #team-info, #team-members {
             margin: 15px 0;
             max-height: 200px;
@@ -111,6 +115,42 @@
             color: #4CAF50;
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             padding-bottom: 10px;
+        }
+        /* Team styling */
+        .team-header {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+        }
+        .team-header h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.8rem;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        .team-members-header {
+            text-align: left;
+            margin-bottom: 10px;
+        }
+        .team-members-header h4 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        .team-members-list {
+            text-align: left;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .team-member {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .team-member:last-child {
+            border-bottom: none;
+        }
+        #strategy-room {
+            min-width: 350px;
         }
     </style>
 </head>

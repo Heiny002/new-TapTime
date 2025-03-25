@@ -15,7 +15,9 @@ const uiState = {
         teamMembers: document.getElementById('team-members'),
         healthBars: document.getElementById('health-bars')
     },
-    currentUsername: ''
+    currentUsername: '',
+    currentTeam: null,
+    teamData: null
 };
 
 // Socket.IO connection
@@ -44,9 +46,11 @@ function setupEventListeners() {
         }
     });
     
-    // Ready button click
+    // Ready button click - Notify server player is ready for team assignment
     uiState.elements.readyBtn.addEventListener('click', () => {
-        showScreen('strategy');
+        socket.emit('playerReady');
+        uiState.elements.readyBtn.disabled = true;
+        uiState.elements.readyBtn.textContent = 'Waiting for team assignment...';
     });
     
     // Start battle button click
@@ -89,26 +93,55 @@ function updatePlayerList(players) {
 }
 
 // Team Management
-function updateTeamInfo(team) {
-    const teamColors = {
-        0: '#E9D229', // Yellow
-        1: '#CC1F11', // Red
-        2: '#0A48A2', // Blue
-        3: '#3BA226'  // Green
-    };
+function updateTeamInfo(teamData) {
+    uiState.teamData = teamData;
+    uiState.currentTeam = teamData.team;
+    
+    // Set team color
+    const teamColor = teamData.teamColor.toString(16).padStart(6, '0');
     
     uiState.elements.teamInfo.innerHTML = `
-        <div style="color: ${teamColors[team]}">
-            <h3>Team ${team + 1}</h3>
+        <div class="team-header" style="color: #${teamColor}">
+            <h3>Team ${teamData.teamName}</h3>
+            <p>You are assigned as Player #${teamData.teamNumber}</p>
         </div>
     `;
+    
+    // Update team members list
+    updateTeamMembersList(teamData.teamMembers);
 }
 
-function updateTeamMembers(players, currentTeam) {
-    const teamPlayers = players.filter(p => p.team === currentTeam);
-    uiState.elements.teamMembers.innerHTML = teamPlayers
-        .map(player => `<div>${player.username}</div>`)
-        .join('');
+function updateTeamMembersList(teamMembers) {
+    uiState.elements.teamMembers.innerHTML = '';
+    
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'team-members-header';
+    header.innerHTML = '<h4>Team Members:</h4>';
+    uiState.elements.teamMembers.appendChild(header);
+    
+    // Create team members list
+    const membersList = document.createElement('div');
+    membersList.className = 'team-members-list';
+    
+    // Sort members by their team number
+    const sortedMembers = [...teamMembers].sort((a, b) => a.teamNumber - b.teamNumber);
+    
+    sortedMembers.forEach(member => {
+        const memberElement = document.createElement('div');
+        memberElement.className = 'team-member';
+        
+        if (member.username === uiState.currentUsername) {
+            memberElement.classList.add('current-player');
+            memberElement.innerHTML = `<strong>#${member.teamNumber}: ${member.username} (You)</strong>`;
+        } else {
+            memberElement.textContent = `#${member.teamNumber}: ${member.username}`;
+        }
+        
+        membersList.appendChild(memberElement);
+    });
+    
+    uiState.elements.teamMembers.appendChild(membersList);
 }
 
 // Health Bar Management
@@ -134,13 +167,19 @@ socket.on('playerList', (players) => {
     updatePlayerList(players);
 });
 
-socket.on('teamAssigned', (data) => {
+socket.on('teamAssigned', (teamData) => {
+    // Save team data to game state for battle
     gameState.currentPlayer = {
-        team: data.team,
-        teamColor: data.teamColor
+        team: teamData.team,
+        teamColor: teamData.teamColor,
+        teamNumber: teamData.teamNumber
     };
-    updateTeamInfo(data.team);
-    updateTeamMembers(data.teamMembers, data.team);
+    
+    // Update UI with team information
+    updateTeamInfo(teamData);
+    
+    // Show strategy room
+    showScreen('strategy');
 });
 
 socket.on('gameStart', (data) => {
