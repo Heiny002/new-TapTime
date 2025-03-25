@@ -60,6 +60,12 @@ const teams = {
 function addFakePlayers(count) {
     if (!fakeUsers.length) return;
     
+    // Ensure we have enough unique usernames
+    if (count > fakeUsers.length) {
+        console.warn(`Requested ${count} fake users, but only ${fakeUsers.length} available. Using maximum available.`);
+        count = fakeUsers.length;
+    }
+    
     // Shuffle and select random users
     const shuffled = [...fakeUsers].sort(() => 0.5 - Math.random());
     const selectedUsers = shuffled.slice(0, count);
@@ -300,8 +306,11 @@ httpServer.listen(PORT, HOST, () => {
     console.log(`- Local: http://localhost:${PORT}`);
     console.log(`- Network: http://${localIP}:${PORT}`);
     
-    // Add random number of fake players (between 5 and 15)
-    const fakePlayers = Math.floor(Math.random() * 11) + 5;
+    // Add fake players - minimum of 40, with some randomness
+    const MIN_FAKE_PLAYERS = 40;
+    const ADDITIONAL_RANDOM_PLAYERS = Math.floor(Math.random() * 10); // 0 to 9 additional players
+    const fakePlayers = MIN_FAKE_PLAYERS + ADDITIONAL_RANDOM_PLAYERS;
+    
     console.log(`Adding ${fakePlayers} fake players...`);
     addFakePlayers(fakePlayers);
 }); 
