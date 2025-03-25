@@ -1,5 +1,7 @@
+import * as THREE from '/libs/three.module.js';
+
 // Game state management
-const gameState = {
+export const gameState = {
     currentPlayer: null,
     isGameStarted: false,
     lastInteraction: 0,
@@ -9,31 +11,102 @@ const gameState = {
     renderer: null,
     ground: null,
     castles: [],
-    healthBars: []
+    healthBars: [],
+    threeJsInitialized: false,
+    initializationAttempted: false
 };
 
+// Cleanup Three.js resources
+function cleanupThreeJS() {
+    if (!gameState.threeJsInitialized) return;
+
+    // Remove event listeners
+    const container = document.getElementById('game-container');
+    container.removeEventListener('click', handleInteraction);
+    container.removeEventListener('touchstart', handleInteractionTouch);
+    
+    // Dispose of geometries and materials
+    if (gameState.ground) {
+        gameState.ground.geometry.dispose();
+        gameState.ground.material.dispose();
+    }
+    
+    gameState.castles.forEach(castle => {
+        if (castle) {
+            castle.geometry.dispose();
+            castle.material.dispose();
+        }
+    });
+    
+    // Clear arrays
+    gameState.castles = [];
+    gameState.healthBars = [];
+    
+    // Remove renderer DOM element
+    if (gameState.renderer) {
+        const container = document.getElementById('game-container');
+        if (container && gameState.renderer.domElement) {
+            container.removeChild(gameState.renderer.domElement);
+        }
+        gameState.renderer.dispose();
+    }
+    
+    // Clear references
+    gameState.scene = null;
+    gameState.camera = null;
+    gameState.renderer = null;
+    gameState.ground = null;
+    gameState.threeJsInitialized = false;
+    gameState.initializationAttempted = false;
+}
+
 // Initialize Three.js scene
-function initThreeJS() {
-    // Create scene
-    gameState.scene = new THREE.Scene();
+export function initThreeJS() {
+    if (gameState.initializationAttempted) {
+        console.warn('Three.js initialization already attempted');
+        return gameState.threeJsInitialized;
+    }
     
-    // Create camera
-    gameState.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    gameState.camera.position.set(0, 15, 15);
-    gameState.camera.lookAt(0, 0, 0);
+    gameState.initializationAttempted = true;
     
-    // Create renderer
-    gameState.renderer = new THREE.WebGLRenderer({ antialias: true });
-    gameState.renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('game-container').appendChild(gameState.renderer.domElement);
-    
-    // Setup scene
-    setupScene();
-    setupLighting();
-    setupControls();
-    
-    // Start animation loop
-    animate();
+    try {
+        console.log('Initializing THREE.js...');
+        
+        // Create scene
+        gameState.scene = new THREE.Scene();
+        console.log('Scene created');
+        
+        // Create camera
+        gameState.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        gameState.camera.position.set(0, 15, 15);
+        gameState.camera.lookAt(0, 0, 0);
+        console.log('Camera setup complete');
+        
+        // Create renderer
+        gameState.renderer = new THREE.WebGLRenderer({ antialias: true });
+        gameState.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('game-container').appendChild(gameState.renderer.domElement);
+        console.log('Renderer created and added to DOM');
+        
+        // Setup scene
+        setupScene();
+        setupLighting();
+        setupControls();
+        console.log('Scene setup complete');
+        
+        // Start animation loop
+        animate();
+        
+        gameState.threeJsInitialized = true;
+        console.log('THREE.js initialized successfully');
+        return true;
+    } catch (error) {
+        console.error('Error initializing Three.js:', error);
+        if (error instanceof TypeError) {
+            console.error('TypeError encountered. This might be because THREE.js is not fully loaded or a method is undefined.');
+        }
+        return false;
+    }
 }
 
 // Scene setup
@@ -140,13 +213,16 @@ function setupControls() {
 
 // Animation loop
 function animate() {
+    if (!gameState.threeJsInitialized) return;
     requestAnimationFrame(animate);
-    gameState.renderer.render(gameState.scene, gameState.camera);
+    if (gameState.renderer && gameState.scene && gameState.camera) {
+        gameState.renderer.render(gameState.scene, gameState.camera);
+    }
 }
 
 // Handle click/tap events
 function handleInteraction(event) {
-    if (!gameState.isGameStarted) return;
+    if (!gameState.isGameStarted || !gameState.threeJsInitialized) return;
     
     const now = Date.now();
     if (now - gameState.lastInteraction < gameState.CLICK_COOLDOWN) return;
@@ -176,6 +252,12 @@ function handleInteraction(event) {
     }
 }
 
+// Handle touch events separately to prevent double handling
+function handleInteractionTouch(event) {
+    event.preventDefault();
+    handleInteraction(event.touches[0]);
+}
+
 // Helper function to get team color
 function getTeamColor(team) {
     const colors = {
@@ -187,14 +269,25 @@ function getTeamColor(team) {
     return colors[team] || 0xffffff;
 }
 
+// Use this to safely try to initialize Three.js
+function tryInitThreeJS() {
+    // We'll try to initialize Three.js, but our app will still work if it fails
+    try {
+        // Try to initialize Three.js only when game starts
+        return initThreeJS();
+    } catch (error) {
+        console.warn('Three.js initialization failed, continuing without 3D rendering:', error);
+        return false;
+    }
+}
+
 // Initialize the game
 document.addEventListener('DOMContentLoaded', () => {
-    initThreeJS();
-    
     // Add click/tap event listener
-    document.getElementById('game-container').addEventListener('click', handleInteraction);
-    document.getElementById('game-container').addEventListener('touchstart', (event) => {
-        event.preventDefault();
-        handleInteraction(event.touches[0]);
-    });
+    const container = document.getElementById('game-container');
+    container.addEventListener('click', handleInteraction);
+    container.addEventListener('touchstart', handleInteractionTouch);
+    
+    // Clean up Three.js when navigating away or refreshing
+    window.addEventListener('beforeunload', cleanupThreeJS);
 }); 

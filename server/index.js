@@ -13,6 +13,13 @@ const io = new Server(httpServer);
 // Serve static files from the client directory
 app.use(express.static(path.join(__dirname, '../client')));
 
+// Serve Three.js from node_modules with proper MIME type
+app.get('/libs/three.module.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.sendFile(path.join(__dirname, '../node_modules/three/build/three.module.js'));
+});
+
 // Load fake users from file
 let fakeUsers = [];
 try {

@@ -187,8 +187,16 @@
 
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.162.0/three.min.js"></script>
-    <script src="js/game.js"></script>
-    <script src="js/ui.js"></script>
+    <script type="module" src="/libs/three.module.js"></script>
+    <script type="module" src="js/game.js"></script>
+    <script type="module" src="js/ui.js"></script>
+    <script>
+        // Ensure socket.io is loaded before our modules
+        window.addEventListener('load', () => {
+            if (typeof io === 'undefined') {
+                console.error('Socket.IO not loaded');
+            }
+        });
+    </script>
 </body>
 </html> 
