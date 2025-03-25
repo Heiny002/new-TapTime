@@ -21,15 +21,26 @@ const uiState = {
 // Socket.IO connection
 const socket = io();
 
+// Handle player join function
+function handleJoin() {
+    const username = uiState.elements.username.value.trim();
+    if (username) {
+        uiState.currentUsername = username;
+        socket.emit('join', username);
+        showScreen('waiting');
+    }
+}
+
 // UI Event Handlers
 function setupEventListeners() {
     // Join button click
-    uiState.elements.joinBtn.addEventListener('click', () => {
-        const username = uiState.elements.username.value.trim();
-        if (username) {
-            uiState.currentUsername = username;
-            socket.emit('join', username);
-            showScreen('waiting');
+    uiState.elements.joinBtn.addEventListener('click', handleJoin);
+    
+    // Enter key in username input
+    uiState.elements.username.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent default form submission
+            handleJoin();
         }
     });
     
@@ -154,4 +165,7 @@ socket.on('gameOver', (data) => {
 // Initialize UI
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
+    
+    // Focus on username input when page loads
+    uiState.elements.username.focus();
 }); 
